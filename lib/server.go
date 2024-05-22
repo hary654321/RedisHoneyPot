@@ -1,19 +1,21 @@
 // @Title  server.go
 // @Description High Interaction Honeypot Solution for Redis protocol
 // @Author  Cy 2021.04.08
-package main
+package lib
 
 import (
 	"bytes"
 	"fmt"
+	"net"
+	"strconv"
+	"strings"
+
 	"github.com/Allenxuxu/gev"
 	"github.com/Allenxuxu/gev/connection"
 	"github.com/emirpasic/gods/maps/hashmap"
 	"github.com/sirupsen/logrus"
 	"github.com/walu/resp"
 	"gopkg.in/ini.v1"
-	"strconv"
-	"strings"
 )
 
 type RedisServer struct {
@@ -55,10 +57,9 @@ func (s *RedisServer) Stop() {
 }
 
 func (s *RedisServer) OnConnect(c *connection.Connection) {
-	s.log.WithFields(logrus.Fields{
-		"action": "NewConnect",
-		"addr":   c.PeerAddr(),
-	}).Println()
+	s.WriteLog(logrus.Fields{
+		"type": "redis-connect",
+	}, c)
 }
 
 func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data []byte) (out []byte) {
@@ -73,10 +74,24 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 
 	com := strings.ToLower(cmd.Name())
 
-	s.log.WithFields(logrus.Fields{
-		"action": strings.Join(cmd.Args, " "),
-		"addr":   c.PeerAddr(),
-	}).Println()
+	var extend map[string]interface{}
+
+	extend = make(map[string]interface{})
+
+	cmdstr := strings.Join(cmd.Args, " ")
+
+	extend["cmd"] = cmdstr
+
+	type1 := "redis-op"
+	if strings.Contains(cmdstr, "auth") {
+		type1 = "login"
+		extend["password"] = SubString(cmdstr, " ", "")
+	}
+
+	s.WriteLog(logrus.Fields{
+		"extend": extend,
+		"type":   type1,
+	}, c)
 
 	switch com {
 	case "ping":
@@ -192,8 +207,78 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 }
 
 func (s *RedisServer) OnClose(c *connection.Connection) {
-	s.log.WithFields(logrus.Fields{
-		"action": "Closed",
-		"addr":   c.PeerAddr(),
-	}).Println()
+	s.WriteLog(logrus.Fields{
+		"type": "redis-closed",
+	}, c)
+}
+
+func (s *RedisServer) WriteLog(fields logrus.Fields, c *connection.Connection) {
+
+	// localHost, localPort, _ := net.SplitHostPort(c.LocalAddr().String())
+	remoteHost, remotePort, _ := net.SplitHostPort(c.PeerAddr())
+
+	port, _ := strconv.Atoi(remotePort)
+
+	fields["protocol"] = "tcp"
+	fields["src_ip"] = remoteHost
+	fields["src_port"] = port
+	fields["dest_ip"] = Getip()
+	fields["dest_port"] = 6379
+
+	s.log.WithFields(fields).Println()
+}
+
+func SubString(str, s, e string) string {
+	start := 0
+	if s != "" {
+		start = strings.Index(str, s) + len(s)
+	}
+	end := 0
+	if e == "" {
+		end = len(str)
+	} else {
+		end = strings.Index(str, e)
+	}
+	substring := str[start:end]
+
+	return substring
+}
+
+func Getip() string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		fmt.Println("获取网络接口信息失败:", err)
+		return ""
+	}
+
+	for _, iface := range interfaces {
+
+		// fmt.Println(iface.Flags.String())
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			fmt.Println("获取网络接口地址失败:", err)
+			continue
+		}
+
+		for _, addr := range addrs {
+			// fmt.Println(addr)
+
+			ip, _, _ := net.ParseCIDR(addr.String())
+
+			if ip.To4() != nil {
+
+				ipstr := ip.String()
+
+				//todo
+				if strings.HasSuffix(ipstr, "0.1") {
+					continue
+				}
+
+				return ipstr
+			}
+		}
+	}
+
+	return ""
 }

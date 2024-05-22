@@ -4,6 +4,7 @@
 package main
 
 import "flag"
+import "RedisHoneyPot/lib"
 
 var (
 	addr  string
@@ -19,7 +20,7 @@ func init() {
 }
 
 func main() {
-	s, err := NewRedisServer(addr, proto, num)
+	s, err := lib.NewRedisServer(addr, proto, num)
 	if err != nil {
 		panic(err)
 	}

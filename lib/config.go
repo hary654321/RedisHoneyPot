@@ -1,7 +1,7 @@
 // @Title  config.go
 // @Description High Interaction Honeypot Solution for Redis protocol
 // @Author  Cy 2021.04.08
-package main
+package lib
 
 import "gopkg.in/ini.v1"
 
