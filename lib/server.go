@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/google/uuid"
+
 	"github.com/Allenxuxu/gev"
 	"github.com/Allenxuxu/gev/connection"
 	"github.com/emirpasic/gods/maps/hashmap"
@@ -221,6 +221,8 @@ func (s *RedisServer) WriteLog(fields logrus.Fields, c *connection.Connection) {
 	port, _ := strconv.Atoi(remotePort)
 
 	fields["protocol"] = "tcp"
+	fields["name"] = "redis"
+	fields["app"] = "redis"
 	fields["src_ip"] = remoteHost
 	fields["src_port"] = port
 	fields["dest_ip"] = Getip()
@@ -231,7 +233,7 @@ func (s *RedisServer) WriteLog(fields logrus.Fields, c *connection.Connection) {
 	// 将时间转换为毫秒级时间戳
 	milliseconds := currentTime.UnixNano() / int64(time.Millisecond)
 	fields["timestamp"] = milliseconds
-	fields["uuid"] = uuid.New()
+	fields["UUID"] = "<UUID>"
 
 	s.log.WithFields(fields).Println()
 }
