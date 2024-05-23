@@ -2,37 +2,17 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"testing"
+	"time"
 )
 
 func TestGetIp(t *testing.T) {
 	// 获取当前文件夹路径
+	// 获取当前时间
+	currentTime := time.Now()
 
-	Println(Getip())
-}
+	// 将时间转换为毫秒级时间戳
+	milliseconds := currentTime.UnixNano() / int64(time.Millisecond)
 
-func Getip() string {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		fmt.Println("获取网络接口信息失败:", err)
-		return ""
-	}
-
-	for _, iface := range interfaces {
-		addrs, err := iface.Addrs()
-		if err != nil {
-			fmt.Println("获取网络接口地址失败:", err)
-			continue
-		}
-
-		for _, addr := range addrs {
-			ip, _, _ := net.ParseCIDR(addr.String())
-			if ip.To4() != nil {
-				return ip.String()
-			}
-		}
-	}
-
-	return ""
+	fmt.Println("当前的毫秒级时间戳：", milliseconds)
 }

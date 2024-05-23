@@ -9,7 +9,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
-
+	"time"
+	"github.com/google/uuid"
 	"github.com/Allenxuxu/gev"
 	"github.com/Allenxuxu/gev/connection"
 	"github.com/emirpasic/gods/maps/hashmap"
@@ -224,6 +225,13 @@ func (s *RedisServer) WriteLog(fields logrus.Fields, c *connection.Connection) {
 	fields["src_port"] = port
 	fields["dest_ip"] = Getip()
 	fields["dest_port"] = 6379
+
+	currentTime := time.Now()
+
+	// 将时间转换为毫秒级时间戳
+	milliseconds := currentTime.UnixNano() / int64(time.Millisecond)
+	fields["timestamp"] = milliseconds
+	fields["uuid"] = uuid.New()
 
 	s.log.WithFields(fields).Println()
 }
