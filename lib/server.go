@@ -84,9 +84,43 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 	extend["cmd"] = cmdstr
 
 	type1 := "redis-op"
-	if strings.Contains(cmdstr, "auth") {
-		type1 = "login"
-		extend["password"] = SubString(cmdstr, " ", "")
+
+	_, bool := s.hashmap.Get(c.PeerAddr())
+
+	//已登录执行命令
+	if bool == true {
+
+		s.WriteLog(logrus.Fields{
+			"extend": extend,
+			"type":   type1,
+		}, c)
+		out = s.dealCmd(com, cmd.Args)
+
+		return
+	}
+
+	if com != "auth" {
+		out = []byte("-NOAUTH Authentication required.\r\n")
+
+		return
+	}
+
+	pwd := ""
+	type1 = "login"
+
+	pwd = SubString(cmdstr, " ", "")
+	extend["password"] = pwd
+
+	// fmt.Println(pwd, s.Config.Section("info").Key("requirepass").Value())
+	if pwd == s.Config.Section("info").Key("requirepass").Value() {
+
+		out = []byte("+OK\r\n")
+
+		//设置登录成功
+		s.hashmap.Put(c.PeerAddr(), 1)
+
+	} else {
+		out = []byte("-ERR invalid password\r\n")
 	}
 
 	s.WriteLog(logrus.Fields{
@@ -94,7 +128,13 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 		"type":   type1,
 	}, c)
 
+	return
+}
+
+func (s *RedisServer) dealCmd(com string, Args []string) (out []byte) {
 	switch com {
+	case "auth":
+
 	case "ping":
 		out = []byte("+PONG\r\n")
 	case "info":
@@ -104,17 +144,17 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 		}
 		out = []byte("$" + strconv.Itoa(len(info)) + "\r\n" + info + "\r\n")
 	case "set":
-		if len(cmd.Args) < 3 {
-			out = []byte("-ERR wrong number of arguments for '" + cmd.Args[0] + "' command\r\n")
+		if len(Args) < 3 {
+			out = []byte("-ERR wrong number of arguments for '" + Args[0] + "' command\r\n")
 		} else {
-			s.hashmap.Put(cmd.Args[1], cmd.Args[2])
+			s.hashmap.Put(Args[1], Args[2])
 			out = []byte("+OK\r\n")
 		}
 	case "get":
-		if len(cmd.Args) != 2 {
-			out = []byte("-ERR wrong number of arguments for '" + cmd.Args[0] + "' command\r\n")
+		if len(Args) != 2 {
+			out = []byte("-ERR wrong number of arguments for '" + Args[0] + "' command\r\n")
 		} else {
-			v, bool := s.hashmap.Get(cmd.Args[1])
+			v, bool := s.hashmap.Get(Args[1])
 			if bool == true {
 				out = []byte("+" + v.(string) + "\r\n")
 			} else {
@@ -122,17 +162,17 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 			}
 		}
 	case "del":
-		if len(cmd.Args) < 2 {
-			out = []byte("-ERR wrong number of arguments for '" + cmd.Args[0] + "' command\r\n")
+		if len(Args) < 2 {
+			out = []byte("-ERR wrong number of arguments for '" + Args[0] + "' command\r\n")
 		} else {
-			s.hashmap.Remove(cmd.Args[1])
+			s.hashmap.Remove(Args[1])
 			out = []byte("+(integer) 1\r\n")
 		}
 	case "exists":
-		if len(cmd.Args) < 2 {
-			out = []byte("-ERR wrong number of arguments for '" + cmd.Args[0] + "' command\r\n")
+		if len(Args) < 2 {
+			out = []byte("-ERR wrong number of arguments for '" + Args[0] + "' command\r\n")
 		} else {
-			_, bool := s.hashmap.Get(cmd.Args[1])
+			_, bool := s.hashmap.Get(Args[1])
 			if bool == true {
 				out = []byte("+(integer) 1\r\n")
 			} else {
@@ -140,20 +180,20 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 			}
 		}
 	case "keys":
-		if len(cmd.Args) != 2 {
-			out = []byte("-ERR wrong number of arguments for '" + cmd.Args[0] + "' command\r\n")
+		if len(Args) != 2 {
+			out = []byte("-ERR wrong number of arguments for '" + Args[0] + "' command\r\n")
 		} else {
-			if cmd.Args[1] == "*" {
+			if Args[1] == "*" {
 				str := "*" + strconv.Itoa(s.hashmap.Size()) + "\r\n"
 				for _, v := range s.hashmap.Keys() {
 					str += "$" + strconv.Itoa(len(v.(string))) + "\r\n" + v.(string) + "\r\n"
 				}
 				out = []byte(str)
 			} else {
-				_, bool := s.hashmap.Get(cmd.Args[1])
+				_, bool := s.hashmap.Get(Args[1])
 				if bool == true {
-					l := strconv.Itoa(len(cmd.Args[1]))
-					out = []byte("*1\r\n$" + l + "\r\n" + cmd.Args[1] + "\r\n")
+					l := strconv.Itoa(len(Args[1]))
+					out = []byte("*1\r\n$" + l + "\r\n" + Args[1] + "\r\n")
 				} else {
 					out = []byte("+(empty array)\r\n")
 				}
@@ -171,15 +211,15 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 		l := strconv.Itoa(s.hashmap.Size())
 		out = []byte("+(integer) " + l + "\r\n")
 	case "config":
-		if cmd.Args[1] == "get" && len(cmd.Args) > 2 {
-			if cmd.Args[2] != "*" {
-				content := s.Config.Section("info").Key(cmd.Args[2]).String()
+		if Args[1] == "get" && len(Args) > 2 {
+			if Args[2] != "*" {
+				content := s.Config.Section("info").Key(Args[2]).String()
 				if content == "" {
 					out = []byte("+(empty array)\r\n")
 				} else {
-					l1 := strconv.Itoa(len(cmd.Args[2]))
+					l1 := strconv.Itoa(len(Args[2]))
 					l2 := strconv.Itoa(len(content))
-					out = []byte("*2\r\n$" + l1 + "\r\n" + cmd.Args[2] + "\r\n$" + l2 + "\r\n" + content + "\r\n")
+					out = []byte("*2\r\n$" + l1 + "\r\n" + Args[2] + "\r\n$" + l2 + "\r\n" + content + "\r\n")
 				}
 			} else {
 				output := "*" + strconv.Itoa(len(s.Config.Section("info").KeyStrings())*2) + "\r\n"
@@ -189,21 +229,22 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 				}
 				out = []byte(output)
 			}
-		} else if cmd.Args[1] == "set" && len(cmd.Args) > 2 {
-			s.Config.Section("info").NewKey(cmd.Args[2], cmd.Args[3])
+		} else if Args[1] == "set" && len(Args) > 2 {
+			s.Config.Section("info").NewKey(Args[2], Args[3])
 			out = []byte("+OK\r\n")
 		} else {
 			out = []byte("-ERR Unknown subcommand or wrong number of arguments for 'get'. Try CONFIG HELP.\r\n")
 		}
 	case "slaveof":
-		if len(cmd.Args) < 3 {
+		if len(Args) < 3 {
 			out = []byte("-ERR wrong number of arguments for 'slaveof' command\r\n")
 		} else {
 			out = []byte("+OK\r\n")
 		}
 	default:
-		out = []byte("-ERR unknown command `" + cmd.Name() + "`, with args beginning with:\r\n")
+		out = []byte("-ERR unknown command `" + com + "`, with args beginning with:\r\n")
 	}
+
 	return
 }
 

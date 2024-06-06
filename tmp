@@ -1,0 +1,114 @@
+func (s *RedisServer) dealCmd(com string, Args []string) (out []byte) {
+	switch com {
+	case "auth":
+
+	case "ping":
+		out = []byte("+PONG\r\n")
+	case "info":
+		info := ""
+		for _, key := range s.Config.Section("info").KeyStrings() {
+			info += fmt.Sprintf("%s:%s\r\n", key, s.Config.Section("info").Key(key))
+		}
+		out = []byte("$" + strconv.Itoa(len(info)) + "\r\n" + info + "\r\n")
+	case "set":
+		if len(Args) < 3 {
+			out = []byte("-ERR wrong number of arguments for '" + Args[0] + "' command\r\n")
+		} else {
+			s.hashmap.Put(Args[1], Args[2])
+			out = []byte("+OK\r\n")
+		}
+	case "get":
+		if len(Args) != 2 {
+			out = []byte("-ERR wrong number of arguments for '" + Args[0] + "' command\r\n")
+		} else {
+			v, bool := s.hashmap.Get(Args[1])
+			if bool == true {
+				out = []byte("+" + v.(string) + "\r\n")
+			} else {
+				out = []byte("+(nil)\r\n")
+			}
+		}
+	case "del":
+		if len(Args) < 2 {
+			out = []byte("-ERR wrong number of arguments for '" + Args[0] + "' command\r\n")
+		} else {
+			s.hashmap.Remove(Args[1])
+			out = []byte("+(integer) 1\r\n")
+		}
+	case "exists":
+		if len(Args) < 2 {
+			out = []byte("-ERR wrong number of arguments for '" + Args[0] + "' command\r\n")
+		} else {
+			_, bool := s.hashmap.Get(Args[1])
+			if bool == true {
+				out = []byte("+(integer) 1\r\n")
+			} else {
+				out = []byte("+(integer) 0\r\n")
+			}
+		}
+	case "keys":
+		if len(Args) != 2 {
+			out = []byte("-ERR wrong number of arguments for '" + Args[0] + "' command\r\n")
+		} else {
+			if Args[1] == "*" {
+				str := "*" + strconv.Itoa(s.hashmap.Size()) + "\r\n"
+				for _, v := range s.hashmap.Keys() {
+					str += "$" + strconv.Itoa(len(v.(string))) + "\r\n" + v.(string) + "\r\n"
+				}
+				out = []byte(str)
+			} else {
+				_, bool := s.hashmap.Get(Args[1])
+				if bool == true {
+					l := strconv.Itoa(len(Args[1]))
+					out = []byte("*1\r\n$" + l + "\r\n" + Args[1] + "\r\n")
+				} else {
+					out = []byte("+(empty array)\r\n")
+				}
+			}
+		}
+	case "flushall":
+		out = []byte("+OK\r\n")
+	case "flushdb":
+		out = []byte("+OK\r\n")
+	case "save":
+		out = []byte("+OK\r\n")
+	case "select":
+		out = []byte("+OK\r\n")
+	case "dbsize":
+		l := strconv.Itoa(s.hashmap.Size())
+		out = []byte("+(integer) " + l + "\r\n")
+	case "config":
+		if Args[1] == "get" && len(Args) > 2 {
+			if Args[2] != "*" {
+				content := s.Config.Section("info").Key(Args[2]).String()
+				if content == "" {
+					out = []byte("+(empty array)\r\n")
+				} else {
+					l1 := strconv.Itoa(len(Args[2]))
+					l2 := strconv.Itoa(len(content))
+					out = []byte("*2\r\n$" + l1 + "\r\n" + Args[2] + "\r\n$" + l2 + "\r\n" + content + "\r\n")
+				}
+			} else {
+				output := "*" + strconv.Itoa(len(s.Config.Section("info").KeyStrings())*2) + "\r\n"
+				for _, key := range s.Config.Section("info").KeyStrings() {
+					value := s.Config.Section("info").Key(key).String()
+					output += "$" + strconv.Itoa(len(key)) + "\r\n" + key + "\r\n" + "$" + strconv.Itoa(len(value)) + "\r\n" + value + "\r\n"
+				}
+				out = []byte(output)
+			}
+		} else if Args[1] == "set" && len(Args) > 2 {
+			s.Config.Section("info").NewKey(Args[2], Args[3])
+			out = []byte("+OK\r\n")
+		} else {
+			out = []byte("-ERR Unknown subcommand or wrong number of arguments for 'get'. Try CONFIG HELP.\r\n")
+		}
+	case "slaveof":
+		if len(Args) < 3 {
+			out = []byte("-ERR wrong number of arguments for 'slaveof' command\r\n")
+		} else {
+			out = []byte("+OK\r\n")
+		}
+	default:
+		out = []byte("-ERR unknown command `" + cmd.Name() + "`, with args beginning with:\r\n")
+	}
+}

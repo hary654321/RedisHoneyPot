@@ -21,3 +21,5 @@ RedisHoneyPot是一款支持Redis协议的高交互式蜜罐系统。采用Golan
 * 使用方法
 ``` nohup ./RedisHoneyPot -addr 0.0.0.0:6379 -proto tcp -num 1 > redis.log &```
   * 默认监听0.0.0.0的6379端口，使用tcp协议
+
+tcpdump -i ens33
