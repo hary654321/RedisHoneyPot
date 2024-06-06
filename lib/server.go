@@ -88,7 +88,7 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 	_, bool := s.hashmap.Get(c.PeerAddr())
 
 	//已登录执行命令
-	if bool == true {
+	if bool {
 
 		s.WriteLog(logrus.Fields{
 			"extend": extend,
@@ -99,6 +99,7 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 		return
 	}
 
+	//未登录  只能执行登录操作
 	if com != "auth" {
 		out = []byte("-NOAUTH Authentication required.\r\n")
 
