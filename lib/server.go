@@ -59,7 +59,7 @@ func (s *RedisServer) Stop() {
 
 func (s *RedisServer) OnConnect(c *connection.Connection) {
 	s.WriteLog(logrus.Fields{
-		"type": "redis-connect",
+		"type": "scan",
 	}, c)
 }
 
@@ -83,7 +83,7 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 
 	extend["cmd"] = cmdstr
 
-	type1 := "redis-op"
+	type1 := "op"
 
 	_, bool := s.hashmap.Get(c.PeerAddr())
 
@@ -251,7 +251,7 @@ func (s *RedisServer) dealCmd(com string, Args []string) (out []byte) {
 
 func (s *RedisServer) OnClose(c *connection.Connection) {
 	s.WriteLog(logrus.Fields{
-		"type": "redis-closed",
+		"type": "close",
 	}, c)
 }
 
