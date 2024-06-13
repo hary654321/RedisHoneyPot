@@ -1,0 +1,2 @@
+{"UUID":"\u003cUUID\u003e","app":"redis","dest_ip":"192.168.56.132","dest_port":6379,"level":"info","msg":"","name":"redis","protocol":"tcp","src_ip":"127.0.0.1","src_port":53556,"time":"2024-06-13 10:08:16","timestamp":1718273296639,"type":"scan"}
+{"UUID":"\u003cUUID\u003e","app":"redis","dest_ip":"192.168.56.132","dest_port":6379,"level":"info","msg":"","name":"redis","protocol":"tcp","src_ip":"127.0.0.1","src_port":53556,"time":"2024-06-13 10:09:02","timestamp":1718273342787,"type":"close"}

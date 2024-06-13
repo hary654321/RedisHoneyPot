@@ -23,3 +23,11 @@ RedisHoneyPot是一款支持Redis协议的高交互式蜜罐系统。采用Golan
   * 默认监听0.0.0.0的6379端口，使用tcp协议
 
 tcpdump -i ens33
+
+
+
+#打包步骤
+
+ go build -o docker/RedisHoneyPot main.go
+
+docker build -t hary654321/redishoneypot  .
