@@ -111,6 +111,7 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 
 	pwd = SubString(cmdstr, " ", "")
 	extend["password"] = pwd
+	extend["username"] = "-" //
 
 	// fmt.Println(pwd, s.Config.Section("info").Key("requirepass").Value())
 	if pwd == s.Config.Section("info").Key("requirepass").Value() {
