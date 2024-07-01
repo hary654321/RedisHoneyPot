@@ -121,8 +121,11 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 		//设置登录成功
 		s.hashmap.Put(c.PeerAddr(), 1)
 
+		extend["succ"] = true //加入成功与否
+
 	} else {
 		out = []byte("-ERR invalid password\r\n")
+		extend["succ"] = false //加入成功与否
 	}
 
 	s.WriteLog(logrus.Fields{
