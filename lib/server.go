@@ -4,6 +4,7 @@
 package lib
 
 import (
+	"RedisHoneyPot/utils"
 	"bytes"
 	"fmt"
 	"net"
@@ -26,7 +27,7 @@ type RedisServer struct {
 	log     *logrus.Logger
 }
 
-func NewRedisServer(address string, proto string, loopsnum int) (server *RedisServer, err error) {
+func NewRedisServer(proto string, loopsnum int) (server *RedisServer, err error) {
 	Serv := new(RedisServer)
 	Serv.hashmap = hashmap.New()
 	config, err := LoadConfig("redis.conf")
@@ -39,7 +40,7 @@ func NewRedisServer(address string, proto string, loopsnum int) (server *RedisSe
 	}
 	Serv.Config = config
 	Serv.server, err = gev.NewServer(Serv,
-		gev.Address(address),
+		gev.Address("0.0.0.0:"+utils.GetHpPortStr()),
 		gev.Network(proto),
 		gev.NumLoops(loopsnum))
 	if err != nil {
@@ -113,8 +114,7 @@ func (s *RedisServer) OnMessage(c *connection.Connection, ctx interface{}, data 
 	extend["password"] = pwd
 	extend["username"] = "-" //
 
-	// fmt.Println(pwd, s.Config.Section("info").Key("requirepass").Value())
-	if pwd == s.Config.Section("info").Key("requirepass").Value() {
+	if pwd == utils.GetLoginPwd() {
 
 		out = []byte("+OK\r\n")
 
